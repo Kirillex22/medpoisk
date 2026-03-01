@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Медпоиск</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app">
+        <div class="chat-container">
+            <header class="chat-header">
+                <h1>🧬 Медпоиск</h1>
+                <p class="subtitle">Задайте вопрос — получите структурированные запросы для PubMed</p>
+            </header>
+
+            <div class="messages" id="messages">
+                <div class="message bot">
+                    <div class="avatar">🧠</div>
+                    <div class="bubble">
+                        Здравствуйте! Опишите вашу медицинскую проблему или тему. Я помогу сформулировать точные
+                        поисковые запросы.
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <textarea id="userInput"
+                    placeholder="Например: влияние омега-3 на когнитивные функции при болезни Альцгеймера"
+                    rows="2"></textarea>
+                <button id="sendBtn">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
