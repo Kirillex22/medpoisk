@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ### 4. Настройка переменных окружения
 
-Создайте файл `.env` в корне проекта со следующим содержимым:
+Отредактируйте файл `.env.example` в корне проекта со следующим содержимым:
 
 ```env
 # GigaChat
@@ -51,6 +51,8 @@ GIGACHAT_MODEL=GigaChat
 GIGACHAT_TEMPERATURE=0.3
 GIGACHAT_MAX_TOKENS=1024
 ```
+
+После этого переименуйте его в `.env`
 
 **Где взять credentials:**
 - `GIGACHAT_CREDENTIALS` — получить в личном кабинете Сбера (авторизационные данные для GigaChat)
