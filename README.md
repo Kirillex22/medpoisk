@@ -1,11 +1,8 @@
 # 🧬 Medical Query Mediator
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.13.1-blue?logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/FastAPI-0.115.8-green?logo=fastapi" alt="FastAPI">
-  <img src="https://img.shields.io/badge/GigaChat-langchain--gigachat-orange" alt="GigaChat">
-  <img src="https://img.shields.io/badge/PubMed-Entrez%20E--utilities-red" alt="Entrez">
-  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="MIT">
+  <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI">
+  <img src="https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain" alt="LangChain">
 </p>
 
 Прототип системы для интеллектуального поиска медицинских статей в PubMed с использованием GigaChat для генерации поисковых запросов и ранжирования результатов.
