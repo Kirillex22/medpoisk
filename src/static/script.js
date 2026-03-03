@@ -12,11 +12,42 @@ const resultsCache = new Map();
 // Последний исходный запрос пользователя
 let lastOriginalQuery = '';
 
+// --- Вспомогательные функции ---
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function scrollToBottom() {
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function slugify(str) {
+    return str.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+}
+
+// --- Добавление сообщений ---
 function addUserMessage(text) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message user';
     messageDiv.innerHTML = `
         <div class="avatar">👤</div>
+        <div class="bubble">${escapeHtml(text)}</div>
+    `;
+    messagesDiv.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+function addBotMessageText(text) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot';
+    messageDiv.innerHTML = `
+        <div class="avatar">🤖</div>
         <div class="bubble">${escapeHtml(text)}</div>
     `;
     messagesDiv.appendChild(messageDiv);
@@ -79,6 +110,21 @@ function removeLoadingMessage() {
     if (loadingMsg) loadingMsg.remove();
 }
 
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'message bot';
+    errorDiv.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="bubble" style="color: #d32f2f;">
+            <p>Произошла ошибка:</p>
+            <p>${escapeHtml(message)}</p>
+        </div>
+    `;
+    messagesDiv.appendChild(errorDiv);
+    scrollToBottom();
+}
+
+// --- Отображение результатов поиска (статьи) ---
 function displayResults(query, articles) {
     const resultsId = `results-${slugify(query)}`;
     let resultsDiv = document.getElementById(resultsId);
@@ -143,46 +189,44 @@ function displayResults(query, articles) {
     });
 }
 
-async function executeQuery(query) {
-    if (resultsCache.has(query)) {
-        displayResults(query, resultsCache.get(query));
-        return;
-    }
-
-    addLoadingMessage();
-    try {
-        const response = await fetch(`${API_BASE_URL}/fetch_results`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                query: query,
-                original_query: lastOriginalQuery
-            })
-        });
-        if (!response.ok) {
-            throw new Error(`Ошибка API: ${response.status}`);
-        }
-        const data = await response.json();
-        resultsCache.set(query, data.results);
-        removeLoadingMessage();
-        displayResults(query, data.results);
-    } catch (error) {
-        removeLoadingMessage();
-        showError(`Ошибка при выполнении запроса: ${error.message}`);
-    }
-}
-
+// --- API вызовы ---
 async function searchQuery(question) {
     const response = await fetch(`${API_BASE_URL}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: question })
     });
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Ошибка API: ${response.status} ${err}`);
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(`Ошибка API: ${response.status} ${JSON.stringify(data)}`);
+        }
+        return data;
+    } else {
+        const text = await response.text();
+        if (!response.ok) {
+            throw new Error(`Ошибка API: ${response.status} ${text}`);
+        }
+        return text;
     }
-    return await response.json();
+}
+
+async function fetchResults(query, originalQuery) {
+    const response = await fetch(`${API_BASE_URL}/fetch_results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, original_query: originalQuery })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ошибка API: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.results;
 }
 
 async function rateArticle(pmid, rating) {
@@ -202,6 +246,25 @@ async function rateArticle(pmid, rating) {
     }
 }
 
+// --- Основные действия ---
+async function executeQuery(query) {
+    if (resultsCache.has(query)) {
+        displayResults(query, resultsCache.get(query));
+        return;
+    }
+
+    addLoadingMessage();
+    try {
+        const results = await fetchResults(query, lastOriginalQuery);
+        resultsCache.set(query, results);
+        removeLoadingMessage();
+        displayResults(query, results);
+    } catch (error) {
+        removeLoadingMessage();
+        showError(`Ошибка при выполнении запроса: ${error.message}`);
+    }
+}
+
 async function handleSend() {
     const question = userInput.value.trim();
     if (question === '') return;
@@ -214,46 +277,25 @@ async function handleSend() {
     try {
         const data = await searchQuery(question);
         removeLoadingMessage();
-        lastOriginalQuery = question; // сохраняем исходный запрос
-        addBotMessageWithQueries(data.generated_queries);
+
+        if (typeof data === 'string') {
+            // Сервер вернул простую строку (например, сообщение от LLM)
+            addBotMessageText(data);
+        } else if (data && Array.isArray(data.generated_queries)) {
+            // Успешно получили список запросов
+            lastOriginalQuery = question;
+            addBotMessageWithQueries(data.generated_queries);
+        } else {
+            // Неожиданный формат ответа
+            addBotMessageText('Получен некорректный ответ от сервера.');
+        }
     } catch (error) {
         removeLoadingMessage();
         showError(error.message);
     }
 }
 
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'message bot';
-    errorDiv.innerHTML = `
-        <div class="avatar">🤖</div>
-        <div class="bubble" style="color: #d32f2f;">
-            <p>Произошла ошибка:</p>
-            <p>${escapeHtml(message)}</p>
-        </div>
-    `;
-    messagesDiv.appendChild(errorDiv);
-    scrollToBottom();
-}
-
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-function scrollToBottom() {
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-function slugify(str) {
-    return str.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-}
-
+// --- Инициализация событий ---
 sendBtn.addEventListener('click', handleSend);
 userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
