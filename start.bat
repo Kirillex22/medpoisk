@@ -110,7 +110,7 @@ if not exist "main.py" (
 echo Запуск сервера...
 echo Для остановки нажмите Ctrl+C
 echo.
-echo Сервер будет доступен по адресу: http://localhost:8000
+echo Страница чата доступна по адресу: http://localhost:8000
 echo Документация API: http://localhost:8000/docs
 echo.
 
